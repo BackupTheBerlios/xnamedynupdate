@@ -1,0 +1,122 @@
+#!/usr/bin/env python
+
+# $Id: xnamedynupdate,v 1.1 2005/02/23 17:35:20 romale Exp $
+
+# XNameDynUpdate - XName.org Dynamic Updater written in Python
+# http://xnamedynupdate.berlios.de
+# Copyright (c) 2005 Alexandre ROMAN <romale at users.berlios.de>
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+import sys
+import getopt
+import xmlrpclib
+
+
+# The XMLRPC interface of xname.org is taken from the xmlrpc.php file
+# from the XName distribution source, available here :
+# http://source.xname.org/
+
+
+class XNameDynUpdate:
+	def __init__(self, user, password, zone, name, ip = None, ttl = None, xmlRpcUrl = None):
+		self.user      = user
+		self.password  = password
+		self.zone      = zone
+		self.name      = name
+		self.ip        = ip
+		self.ttl       = ttl
+
+		if xmlRpcUrl == None:
+			self.xmlRpcUrl = "http://www.xname.org/xmlrpc.php"
+		else:
+			self.xmlRpcUrl = xmlRpcUrl
+
+
+	def updateArecord(self):
+		server = xmlrpclib.ServerProxy(self.xmlRpcUrl)
+		data = { "user" : self.user, "password" : self.password,
+			"zone" : self.zone, "name" : self.name, "oldaddress" : "*" }
+
+		if self.ip != None:
+			data["newaddress"] = self.ip
+		if self.ttl != None:
+			data["ttl"] = self.ttl
+
+		server.xname.updateArecord(data)
+
+
+def main(argv):
+	try:
+		opts, args = getopt.getopt(argv, "u:p:z:n:i:t:x:")
+	except getopt.GetoptError:
+		usage()
+		sys.exit(2)
+
+	user = None
+	password = None
+	zone = None
+	name = None
+	ip = None
+	ttl = None
+	xmlRpcUrl = None
+
+	for o, a in opts:
+		if o in ("-u", "--user"):
+			user = a
+		if o in ("-p", "--password"):
+			password = a
+		if o in ("-z", "--zone"):
+			zone = a
+		if o in ("-n", "--name"):
+			name = a
+		if o in ("-i", "--ip"):
+			ip = a
+		if o in ("-t", "--ttl"):
+			ttl = a
+		if o in ("-x", "--xmlrpcurl"):
+			xmlRpcUrl = a
+
+	if user == None or password == None or zone == None or name == None:
+		usage()
+		sys.exit(3)
+
+	try:
+		xname = XNameDynUpdate(user, password, zone, name, ip, ttl, xmlRpcUrl)
+		xname.updateArecord()
+		print 'Record "%s" updated in zone "%s"' % (name, zone)
+	except Exception, e:
+		print 'Error while updating record "%s" in zone "%s": %s' % (name, zone, e)
+		sys.exit(1)
+
+
+def usage():
+	help = """XNameDynUpdate - Copyright (c) 2005 Alexandre ROMAN
+Published under GPL licence.
+
+Start this program with the following arguments :
+  -u, --user      : username
+  -p, --password  : password
+  -z, --zone      : zone to update
+  -n, --name      : record name to update
+  -i, --ip        : new IP (optional)
+  -t, --ttl       : TTL for the new record (optional)
+  -x, --xmlrpcurl : URL for XMLRPC interface (optional)"""
+	print help
+
+
+if __name__ == "__main__":
+	main(sys.argv[1:])
+
